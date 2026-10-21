@@ -1,0 +1,1111 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+        "title": "EDMS Employee API",
+        "description": "Login melalui POST /api/login, salin data.token, lalu klik Authorize dan masukkan token tanpa awalan Bearer. Admin dapat membaca, mencari, menambah, mengedit, dan menghapus Employee. Karyawan hanya dapat membaca dan mencari. Endpoint public tidak membutuhkan token. Token berlaku 8 jam; logout mencabut token yang digunakan. ID akun users berbeda dari ID Employee.",
+        "version": "1.0.0"
+    },
+    "servers": [
+        {
+            "url": "/",
+            "description": "Server aplikasi saat ini"
+        }
+    ],
+    "paths": {
+        "/api/login": {
+            "post": {
+                "tags": [
+                    "Autentikasi"
+                ],
+                "summary": "Login Admin atau Karyawan",
+                "description": "Menghasilkan token Sanctum yang berlaku selama 8 jam.",
+                "operationId": "login",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "email",
+                                    "password"
+                                ],
+                                "properties": {
+                                    "email": {
+                                        "type": "string",
+                                        "format": "email",
+                                        "example": "admin@example.com"
+                                    },
+                                    "password": {
+                                        "type": "string",
+                                        "format": "password",
+                                        "example": "password-akun-anda"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Login berhasil. Salin data.token, lalu masukkan ke tombol Authorize.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/LoginResponse"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Email atau password salah.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                },
+                                "example": {
+                                    "message": "Email atau password salah.",
+                                    "data": null,
+                                    "errors": null
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Email/password tidak valid atau tidak diisi.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                },
+                                "example": {
+                                    "message": "Data yang diberikan tidak valid.",
+                                    "data": null,
+                                    "errors": {
+                                        "email": [
+                                            "The email field is required."
+                                        ]
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": []
+            }
+        },
+        "/api/user": {
+            "get": {
+                "tags": [
+                    "Autentikasi"
+                ],
+                "summary": "Lihat akun yang sedang login",
+                "description": "Mengembalikan profil akun berdasarkan token. Tabel users berbeda dari tabel employees.",
+                "operationId": "getProfile",
+                "responses": {
+                    "200": {
+                        "description": "Profil berhasil diambil.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProfileResponse"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/logout": {
+            "post": {
+                "tags": [
+                    "Autentikasi"
+                ],
+                "summary": "Logout dan cabut token saat ini",
+                "description": "Tidak membutuhkan body. Token yang dikirim dicabut; token lain milik akun tetap berlaku. Setelah logout, token ini akan ditolak dengan 401.",
+                "operationId": "logout",
+                "responses": {
+                    "200": {
+                        "description": "Logout berhasil.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessageResponse"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/employees": {
+            "get": {
+                "tags": [
+                    "Employee Private"
+                ],
+                "summary": "Daftar dan cari Employee — Admin / Karyawan",
+                "description": "Memerlukan token. Menampilkan data lengkap termasuk email dan telepon. Pencarian tidak membedakan huruf besar/kecil. Hasil kosong tetap 200.",
+                "operationId": "listEmployees",
+                "parameters": [
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "Cari nama, email, departemen, atau jabatan.",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "nullable": true,
+                            "maxLength": 100
+                        },
+                        "example": "Budi"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Page"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Daftar Employee dengan pagination.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/EmployeeList"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/Forbidden"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationError"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Employee Private"
+                ],
+                "summary": "Tambah Employee — khusus Admin",
+                "description": "Role karyawan ditolak dengan 403. Email harus unik. Telepon opsional. ID dan timestamp otomatis dibuat server. Simpan data.id untuk mencoba detail/edit/hapus.",
+                "operationId": "createEmployee",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/EmployeeInput"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Karyawan berhasil ditambahkan.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/EmployeeResponse"
+                                },
+                                "example": {
+                                    "message": "Karyawan berhasil ditambahkan.",
+                                    "data": {
+                                        "id": 1,
+                                        "name": "Budi Santoso",
+                                        "email": "budi@example.com",
+                                        "phone": "081234567890",
+                                        "department": "Teknologi Informasi",
+                                        "position": "Staff",
+                                        "created_at": "2026-10-21T04:00:00.000000Z",
+                                        "updated_at": "2026-10-21T04:00:00.000000Z"
+                                    },
+                                    "errors": null
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/Forbidden"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationError"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/employees/{employee}": {
+            "get": {
+                "tags": [
+                    "Employee Private"
+                ],
+                "summary": "Detail lengkap Employee — Admin / Karyawan",
+                "operationId": "showEmployee",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/EmployeeId"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Detail lengkap Employee.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/EmployeeResponse"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/Forbidden"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Employee Private"
+                ],
+                "summary": "Edit semua kolom wajib — khusus Admin",
+                "description": "Wajib mengirim name, email, department, position. Telepon opsional; jika tidak dikirim, nilai lama tetap tersimpan. Email Employee ini boleh dipertahankan; email Employee lain ditolak dengan 422.",
+                "operationId": "replaceEmployee",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/EmployeeId"
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/EmployeeInput"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Karyawan berhasil diperbarui.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/EmployeeResponse"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/Forbidden"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationError"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Employee Private"
+                ],
+                "summary": "Hapus Employee — khusus Admin",
+                "description": "Tidak membutuhkan body. Data dihapus permanen. Setelah berhasil, detail ID ini menghasilkan 404. Gunakan data uji.",
+                "operationId": "deleteEmployee",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/EmployeeId"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Karyawan berhasil dihapus.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessageResponse"
+                                },
+                                "example": {
+                                    "message": "Karyawan berhasil dihapus.",
+                                    "data": null,
+                                    "errors": null
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/Forbidden"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "patch": {
+                "tags": [
+                    "Employee Private"
+                ],
+                "summary": "Edit sebagian kolom — khusus Admin",
+                "description": "Kirim hanya kolom yang ingin diubah. Kolom wajib yang dikirim tidak boleh kosong. phone boleh null. Kolom yang tidak dikirim tetap dipertahankan.",
+                "operationId": "patchEmployee",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/EmployeeId"
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/EmployeeFields"
+                            },
+                            "example": {
+                                "position": "Supervisor",
+                                "phone": null
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Karyawan berhasil diperbarui.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/EmployeeResponse"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/Forbidden"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationError"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/public/employees": {
+            "get": {
+                "tags": [
+                    "Employee Public"
+                ],
+                "summary": "Daftar dan cari Employee tanpa login",
+                "description": "Hanya menampilkan id, name, department, position. Pencarian tidak membedakan huruf besar/kecil. Hasil kosong tetap 200 dengan data berupa array kosong.",
+                "operationId": "listPublicEmployees",
+                "parameters": [
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "Cari berdasarkan nama, departemen, atau jabatan. Tidak mencari email/telepon.",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "nullable": true,
+                            "maxLength": 100
+                        },
+                        "example": "Budi"
+                    },
+                    {
+                        "$ref": "#/components/parameters/Page"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Daftar public dengan pagination.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PublicEmployeeList"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationError"
+                    }
+                },
+                "security": []
+            }
+        },
+        "/api/public/employees/{id}": {
+            "get": {
+                "tags": [
+                    "Employee Public"
+                ],
+                "summary": "Detail Employee tanpa login",
+                "description": "Respons tidak menyertakan email, nomor telepon, atau timestamp Employee.",
+                "operationId": "showPublicEmployee",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID dari tabel employees.",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1
+                        },
+                        "example": 1
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Detail public Employee.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PublicEmployeeResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    }
+                },
+                "security": []
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "PublicEmployee": {
+                "required": [
+                    "id",
+                    "name",
+                    "department",
+                    "position"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "name": {
+                        "type": "string",
+                        "example": "Budi Santoso"
+                    },
+                    "department": {
+                        "type": "string",
+                        "example": "Teknologi Informasi"
+                    },
+                    "position": {
+                        "type": "string",
+                        "example": "Staff"
+                    }
+                },
+                "type": "object"
+            },
+            "Employee": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/PublicEmployee"
+                    },
+                    {
+                        "required": [
+                            "email",
+                            "phone",
+                            "created_at",
+                            "updated_at"
+                        ],
+                        "properties": {
+                            "email": {
+                                "type": "string",
+                                "format": "email",
+                                "example": "budi@example.com"
+                            },
+                            "phone": {
+                                "type": "string",
+                                "example": "081234567890",
+                                "nullable": true
+                            },
+                            "created_at": {
+                                "type": "string",
+                                "format": "date-time",
+                                "nullable": true
+                            },
+                            "updated_at": {
+                                "type": "string",
+                                "format": "date-time",
+                                "nullable": true
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
+            },
+            "EmployeeFields": {
+                "description": "Kolom yang dikirim harus valid. Nomor telepon boleh null. Email harus unik pada tabel employees; saat edit, email Employee itu sendiri boleh dipertahankan.",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "example": "Budi Santoso",
+                        "maxLength": 255,
+                        "minLength": 1
+                    },
+                    "email": {
+                        "type": "string",
+                        "format": "email",
+                        "example": "budi@example.com",
+                        "maxLength": 255
+                    },
+                    "phone": {
+                        "type": "string",
+                        "example": "081234567890",
+                        "nullable": true,
+                        "maxLength": 30
+                    },
+                    "department": {
+                        "type": "string",
+                        "example": "Teknologi Informasi",
+                        "maxLength": 255,
+                        "minLength": 1
+                    },
+                    "position": {
+                        "type": "string",
+                        "example": "Staff",
+                        "maxLength": 255,
+                        "minLength": 1
+                    }
+                },
+                "type": "object"
+            },
+            "EmployeeInput": {
+                "required": [
+                    "name",
+                    "email",
+                    "department",
+                    "position"
+                ],
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/EmployeeFields"
+                    }
+                ]
+            },
+            "UserProfile": {
+                "required": [
+                    "id",
+                    "name",
+                    "email",
+                    "role"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 2
+                    },
+                    "name": {
+                        "type": "string",
+                        "example": "Admin"
+                    },
+                    "email": {
+                        "type": "string",
+                        "format": "email",
+                        "example": "admin@example.com"
+                    },
+                    "role": {
+                        "type": "string",
+                        "example": "admin",
+                        "enum": [
+                            "admin",
+                            "karyawan"
+                        ]
+                    }
+                },
+                "type": "object"
+            },
+            "LoginResponse": {
+                "required": [
+                    "message",
+                    "data",
+                    "errors"
+                ],
+                "properties": {
+                    "message": {
+                        "type": "string",
+                        "example": "Login berhasil."
+                    },
+                    "data": {
+                        "required": [
+                            "token",
+                            "token_type",
+                            "user"
+                        ],
+                        "properties": {
+                            "token": {
+                                "type": "string",
+                                "example": "TOKEN_DARI_SERVER"
+                            },
+                            "token_type": {
+                                "type": "string",
+                                "example": "Bearer"
+                            },
+                            "user": {
+                                "$ref": "#/components/schemas/UserProfile"
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "errors": {
+                        "type": "object",
+                        "example": null,
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "ProfileResponse": {
+                "required": [
+                    "message",
+                    "data",
+                    "errors"
+                ],
+                "properties": {
+                    "message": {
+                        "type": "string",
+                        "example": "Profil berhasil diambil."
+                    },
+                    "data": {
+                        "$ref": "#/components/schemas/UserProfile"
+                    },
+                    "errors": {
+                        "type": "object",
+                        "example": null,
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "MessageResponse": {
+                "required": [
+                    "message",
+                    "data",
+                    "errors"
+                ],
+                "properties": {
+                    "message": {
+                        "type": "string",
+                        "example": "Logout berhasil."
+                    },
+                    "data": {
+                        "type": "object",
+                        "example": null,
+                        "nullable": true
+                    },
+                    "errors": {
+                        "type": "object",
+                        "example": null,
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "ErrorResponse": {
+                "required": [
+                    "message",
+                    "data",
+                    "errors"
+                ],
+                "properties": {
+                    "message": {
+                        "type": "string",
+                        "example": "Unauthenticated."
+                    },
+                    "data": {
+                        "type": "object",
+                        "example": null,
+                        "nullable": true
+                    },
+                    "errors": {
+                        "type": "object",
+                        "example": null,
+                        "nullable": true,
+                        "additionalProperties": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                },
+                "type": "object"
+            },
+            "PaginationLinks": {
+                "required": [
+                    "first",
+                    "last",
+                    "prev",
+                    "next"
+                ],
+                "properties": {
+                    "first": {
+                        "type": "string"
+                    },
+                    "last": {
+                        "type": "string"
+                    },
+                    "prev": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "next": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "PaginationMeta": {
+                "properties": {
+                    "current_page": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "from": {
+                        "type": "integer",
+                        "example": 1,
+                        "nullable": true
+                    },
+                    "to": {
+                        "type": "integer",
+                        "example": 10,
+                        "nullable": true
+                    },
+                    "last_page": {
+                        "type": "integer",
+                        "example": 2
+                    },
+                    "per_page": {
+                        "type": "integer",
+                        "example": 10
+                    },
+                    "total": {
+                        "type": "integer",
+                        "example": 12
+                    },
+                    "path": {
+                        "type": "string",
+                        "example": "/api/employees"
+                    },
+                    "links": {
+                        "type": "array",
+                        "items": {
+                            "properties": {
+                                "url": {
+                                    "type": "string",
+                                    "nullable": true
+                                },
+                                "label": {
+                                    "type": "string",
+                                    "example": "1"
+                                },
+                                "active": {
+                                    "type": "boolean",
+                                    "example": true
+                                }
+                            },
+                            "type": "object"
+                        }
+                    }
+                },
+                "type": "object"
+            },
+            "PublicEmployeeResponse": {
+                "required": [
+                    "message",
+                    "data",
+                    "errors"
+                ],
+                "properties": {
+                    "data": {
+                        "$ref": "#/components/schemas/PublicEmployee"
+                    },
+                    "message": {
+                        "type": "string",
+                        "example": "Detail karyawan berhasil diambil."
+                    },
+                    "errors": {
+                        "type": "object",
+                        "example": null,
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "EmployeeResponse": {
+                "required": [
+                    "message",
+                    "data",
+                    "errors"
+                ],
+                "properties": {
+                    "data": {
+                        "$ref": "#/components/schemas/Employee"
+                    },
+                    "message": {
+                        "type": "string",
+                        "example": "Detail karyawan berhasil diambil."
+                    },
+                    "errors": {
+                        "type": "object",
+                        "example": null,
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "PublicEmployeeList": {
+                "required": [
+                    "message",
+                    "data",
+                    "errors",
+                    "links",
+                    "meta"
+                ],
+                "properties": {
+                    "data": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/PublicEmployee"
+                        }
+                    },
+                    "message": {
+                        "type": "string",
+                        "example": "Daftar karyawan berhasil diambil."
+                    },
+                    "errors": {
+                        "type": "object",
+                        "example": null,
+                        "nullable": true
+                    },
+                    "links": {
+                        "$ref": "#/components/schemas/PaginationLinks"
+                    },
+                    "meta": {
+                        "$ref": "#/components/schemas/PaginationMeta"
+                    }
+                },
+                "type": "object"
+            },
+            "EmployeeList": {
+                "required": [
+                    "message",
+                    "data",
+                    "errors",
+                    "links",
+                    "meta"
+                ],
+                "properties": {
+                    "data": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/Employee"
+                        }
+                    },
+                    "message": {
+                        "type": "string",
+                        "example": "Daftar karyawan berhasil diambil."
+                    },
+                    "errors": {
+                        "type": "object",
+                        "example": null,
+                        "nullable": true
+                    },
+                    "links": {
+                        "$ref": "#/components/schemas/PaginationLinks"
+                    },
+                    "meta": {
+                        "$ref": "#/components/schemas/PaginationMeta"
+                    }
+                },
+                "type": "object"
+            }
+        },
+        "responses": {
+            "Unauthorized": {
+                "description": "Token tidak ada, tidak valid, sudah dicabut, atau kedaluwarsa.",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "$ref": "#/components/schemas/ErrorResponse"
+                        },
+                        "example": {
+                            "message": "Unauthenticated.",
+                            "data": null,
+                            "errors": null
+                        }
+                    }
+                }
+            },
+            "Forbidden": {
+                "description": "Role pengguna tidak diizinkan melakukan tindakan ini.",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "$ref": "#/components/schemas/ErrorResponse"
+                        },
+                        "example": {
+                            "message": "This action is unauthorized.",
+                            "data": null,
+                            "errors": null
+                        }
+                    }
+                }
+            },
+            "NotFound": {
+                "description": "Employee dengan ID tersebut tidak ditemukan.",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "$ref": "#/components/schemas/ErrorResponse"
+                        },
+                        "example": {
+                            "message": "Karyawan tidak ditemukan.",
+                            "data": null,
+                            "errors": null
+                        }
+                    }
+                }
+            },
+            "ValidationError": {
+                "description": "Input tidak valid. Detail per kolom tersedia pada errors; teks pesan mengikuti bahasa server.",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "$ref": "#/components/schemas/ErrorResponse"
+                        },
+                        "example": {
+                            "message": "The email field is required.",
+                            "data": null,
+                            "errors": {
+                                "email": [
+                                    "The email field is required."
+                                ]
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "parameters": {
+            "Page": {
+                "name": "page",
+                "in": "query",
+                "description": "Nomor halaman. Setiap halaman memuat maksimal 10 Employee.",
+                "required": false,
+                "schema": {
+                    "type": "integer",
+                    "default": 1,
+                    "minimum": 1
+                }
+            },
+            "EmployeeId": {
+                "name": "employee",
+                "in": "path",
+                "description": "ID Employee pada tabel employees, bukan ID akun users.",
+                "required": true,
+                "schema": {
+                    "type": "integer",
+                    "minimum": 1
+                },
+                "example": 1
+            }
+        },
+        "securitySchemes": {
+            "bearerAuth": {
+                "type": "http",
+                "description": "Masukkan token dari respons login, tanpa awalan Bearer.",
+                "scheme": "bearer"
+            }
+        }
+    },
+    "tags": [
+        {
+            "name": "Autentikasi",
+            "description": "Login, profil akun, dan logout. Login tidak membutuhkan token."
+        },
+        {
+            "name": "Employee Public",
+            "description": "Tanpa token. Hanya id, name, department, position yang ditampilkan."
+        },
+        {
+            "name": "Employee Private",
+            "description": "Memerlukan token Sanctum. Baca/cari: Admin dan Karyawan. Tambah/edit/hapus: khusus Admin."
+        }
+    ]
+}
